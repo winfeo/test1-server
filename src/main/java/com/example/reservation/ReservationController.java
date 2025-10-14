@@ -2,9 +2,7 @@ package com.example.reservation;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -34,5 +32,14 @@ public class ReservationController {
     public List<Reservation> getAllReservation(){
         log.info("Called getAllReservation");
         return reservationService.findAllReservations();
+    }
+
+
+    @PostMapping
+    public Reservation createReservation(
+        @RequestBody Reservation reservationToCreate
+    ) {
+        log.info("Called createReservation");
+        return reservationService.createReservation(reservationToCreate);
     }
 }
