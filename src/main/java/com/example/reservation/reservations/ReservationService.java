@@ -1,8 +1,10 @@
 package com.example.reservation.reservations;
 
+import com.example.reservation.reservations.availability.ReservationAvailabilityService;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,16 +17,20 @@ public class ReservationService {
 
     private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
 
-
     private final ReservationRepository repository;
+
     private final ReservationMapper mapper;
+
+    private final ReservationAvailabilityService availabilityService;
 
     public ReservationService(
             ReservationRepository repository,
-            ReservationMapper mapper
+            ReservationMapper mapper,
+            ReservationAvailabilityService availabilityService
     ) {
         this.repository = repository;
         this.mapper = mapper;
+        this.availabilityService = availabilityService;
     }
 
 
@@ -40,9 +46,25 @@ public class ReservationService {
         return mapper.toDomain(reservationEntity);
     }
 
-    public List<Reservation> findAllReservations() {
+    //фильтрация
+    public List<Reservation> searchAllByFilter(
+            ReservationSearchFilter filter
+    ) {
+        int pageSize = filter.pageSize() != null
+                ? filter.pageSize() : 10;
+        int pageNumber = filter.pageNumber() != null
+                ? filter.pageNumber() : 0;
 
-        List<ReservationEntity> allEntities = repository.findAll();
+        //пагинация
+        var pageable = Pageable
+                .ofSize(pageSize)
+                .withPage(pageNumber);
+
+        List<ReservationEntity> allEntities = repository.searchAllByFilter(
+                filter.roomId(),
+                filter.userId(),
+                pageable
+        );
 
         return allEntities.stream()
                 .map(mapper::toDomain)
@@ -116,12 +138,12 @@ public class ReservationService {
             throw new IllegalStateException("Cannot approve reservation: status = " + reservationEntity.getStatus());
         }
 
-        var isConflict = isReservationConflict(
+        var isAvailableToApprove = availabilityService.isReservationAvailable(
                 reservationEntity.getRoomId(),
                 reservationEntity.getStartDate(),
                 reservationEntity.getEndDate()
         );
-        if (isConflict) {
+        if (!isAvailableToApprove) {
             throw new IllegalStateException("Cannot approve reservation because of date conflict" );
         }
 
@@ -129,25 +151,6 @@ public class ReservationService {
         repository.save(reservationEntity);
 
         return mapper.toDomain(reservationEntity);
-    }
-
-    private boolean isReservationConflict (
-            Long roomId,
-            LocalDate startDate,
-            LocalDate endDate
-    ) {
-        List<Long> conflictingIds = repository.findConflictReservationIds(
-                roomId,
-                startDate,
-                endDate,
-                ReservationStatus.APPROVED
-        );
-
-        if (conflictingIds.isEmpty()){
-            return false;
-        }
-        log.info("Conflict with ids = {}", conflictingIds);
-        return true;
     }
 
 }

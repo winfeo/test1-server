@@ -35,9 +35,23 @@ public class ReservationController {
 
 
     @GetMapping
-    public ResponseEntity<List<Reservation>> getAllReservation(){
+    public ResponseEntity<List<Reservation>> getAllReservation(
+            //required = false - необязательный параметр в запросе
+            @RequestParam(name = "roomId", required = false) Long roomId,
+            @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam(name = "pageSize", required = false) Integer pageSize,
+            @RequestParam(name = "pageNumber", required = false) Integer pageNumber
+    ) {
         log.info("Called getAllReservation");
-        return  ResponseEntity.ok(reservationService.findAllReservations());
+        var filter = new ReservationSearchFilter(
+                roomId,
+                userId,
+                pageSize,
+                pageNumber
+        );
+        return ResponseEntity.ok(reservationService.searchAllByFilter (
+                filter
+        ));
     }
 
 
